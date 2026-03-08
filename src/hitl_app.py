@@ -47,7 +47,7 @@ if pool:
                     
                     if selected_thread:
                         st.divider()
-                        st.write(f"### 🔍 Inspection: `{selected_thread}`")
+                        st.write(f"### 📋 Reviewing Submission: `{selected_thread}`")
                         
                         # Query LangGraph state
                         cur.execute("SELECT checkpoint FROM checkpoints WHERE thread_id = %s ORDER BY checkpoint_id DESC LIMIT 1", (selected_thread,))
@@ -55,35 +55,49 @@ if pool:
                         
                         if row:
                             checkpoint_data = row[0]
-                            # LangGraph state is usually in ['values']
-                            state_values = checkpoint_data.get("values", {})
+                            # LangGraph v1/v2 checkpoint structure: look for 'channel_values' or 'values'
+                            v1_values = checkpoint_data.get("channel_values", {})
+                            v2_values = checkpoint_data.get("values", {})
+                            state_values = v1_values or v2_values
+                            
                             content = state_values.get("text_content", "N/A")
-                            eval_data = state_values.get("evaluation", {})
+                            eval_data = state_values.get("evaluation") or {}
                             
                             col1, col2 = st.columns([1, 1])
                             
                             with col1:
-                                st.subheader("📖 Submission Content")
+                                st.subheader("✉️ Postcard Message")
                                 st.info(f'"{content}"')
                                 
-                                st.subheader("🤖 AI Analysis")
-                                status = eval_data.get("status", "UNKNOWN")
-                                color = "green" if status == "APPROVED" else "orange" if status == "NEEDS_REVIEW" else "red"
-                                st.markdown(f"**Status**: :{color}[{status}]")
-                                st.markdown(f"**Confidence**: `{eval_data.get('confidence_score', 0)*100:.1f}%`")
-                                st.markdown(f"**Reasoning**: {eval_data.get('reasoning', 'No reasoning provided.')}")
+                                st.subheader("🤖 AI's Initial Thought")
+                                status = eval_data.get("status", "NEEDS_REVIEW") # Default to review if uncertain
+                                confidence = eval_data.get('confidence_score', 0)
+                                reasoning = eval_data.get('reasoning', 'The AI is uncertain and requests your expert judgment.')
                                 
-                                with st.expander("🛠️ Technical Trace (JSON)"):
+                                # Friendly Labels
+                                friendly_status = {
+                                    "APPROVED": "✅ Safe to Print",
+                                    "REJECTED": "❌ Policy Violation",
+                                    "NEEDS_REVIEW": "⚠️ Needs Expert Eyes"
+                                }.get(status, "🔍 Under Investigation")
+                                
+                                st.markdown(f"**AI Suggestion**: {friendly_status}")
+                                st.markdown(f"**Certainty Level**: `{confidence*100:.1f}%`")
+                                st.markdown(f"**AI's Note**: *{reasoning}*")
+                                
+                                with st.expander("🛠️ Engineer's View (JSON State)"):
                                     st.json(checkpoint_data)
                             
                             with col2:
-                                st.subheader("⚖️ Final Human Authority")
-                                st.markdown("Please provide the final decision on this postcard. Your decision will be logged for audit and will override the AI's initial flagging.")
+                                st.subheader("⚖️ Your Final Decision")
+                                st.markdown("As a human moderator, you have the **Final Authority**. Choose whether to override or confirm the AI's suggestion.")
                                 
                                 with st.form("resolution_form"):
-                                    new_status = st.radio("Manual Resolution:", ["APPROVE", "REJECT"], index=0 if status == "APPROVED" else 1)
-                                    comments = st.text_area("Justification / Audit Notes:", placeholder="Why are you making this decision?")
-                                    submit = st.form_submit_button("Submit Final Decision", use_container_width=True)
+                                    new_status = st.radio("What should we do with this postcard?", ["APPROVE", "REJECT"], 
+                                                        index=0 if status == "APPROVED" else 1,
+                                                        help="Approve means it goes to print. Reject means the user is notified of a violation.")
+                                    comments = st.text_area("Why are you making this choice? (Audit Note)", placeholder="e.g., 'False positive, the content is actually a joke, not a threat.'")
+                                    submit = st.form_submit_button("Confirm Decision & Update System", use_container_width=True)
                                     
                                     if submit:
                                         cur.execute("""
@@ -95,10 +109,10 @@ if pool:
                                                 reviewed_at = CURRENT_TIMESTAMP
                                         """, (selected_thread, new_status, comments))
                                         conn.commit()
-                                        st.success(f"✅ Resolution logged for `{selected_thread}`. The system state has been updated.")
+                                        st.success(f"✅ Resolution for `{selected_thread}` has been officially logged. The system will now execute your decision.")
                                         st.balloons()
                         else:
-                            st.warning("Could not retrieve state details for this thread.")
+                            st.warning("Could not find the 'thinking process' for this postcard in the database.")
                 else:
                     st.write("No pending reviews found in the database.")
     except Exception as e:

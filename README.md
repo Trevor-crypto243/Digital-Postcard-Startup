@@ -82,12 +82,29 @@ make run-hitl
 ---
 
 ## 🧪 Testing
+
+### **A. End-to-End Automated Test Suite**
 ```bash
 # Integration Tests
 python3 tests/verify_full_functionality.py
 
 # LLM-as-a-Judge Eval Suite
 PYTHONPATH=. python3 tests/eval_suite.py
+```
+
+### **B. Manual Testing (cURL)**
+The API uses an authenticated header: `X-Agentic-API-Key: agentic-demo-key-123`.
+
+**Evaluate a Postcard:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/postcards/evaluate" \
+     -H "Content-Type: application/json" \
+     -H "X-Agentic-API-Key: agentic-demo-key-123" \
+     -d '{
+       "id": "pc-888", 
+       "user_id": "u-123", 
+       "text_content": "This is a beautiful test postcard!"
+     }'
 ```
 
 ---
