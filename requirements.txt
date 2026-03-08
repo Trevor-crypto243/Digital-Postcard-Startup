@@ -11,3 +11,15 @@ pytest
 pytest-asyncio
 chromadb
 loguru
+langchain_openai
+langchain_community
+streamlit
+langgraph-checkpoint-postgres
+psycopg
+psycopg-pool
+slowapi
+sqlalchemy
+asyncpg
+passlib
+bcrypt
+python-jose
