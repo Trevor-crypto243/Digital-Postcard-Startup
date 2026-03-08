@@ -66,6 +66,22 @@ curl -X POST "http://localhost:8000/api/v1/postcards/evaluate" \
 
 ---
 
+## 🤵 Human-in-The-Loop (HITL) Workflow
+The system is designed for high-stakes environments where AI decisions require human oversight.
+
+### **The "Review to Resolution" Flow:**
+1.  **AI Flagging**: If the pipeline results in `NEEDS_REVIEW`, the `take_action_step` is triggered.
+2.  **Multichannel Notification**: 
+    - **Slack**: A high-priority alert is dispatched to the moderation channel using the `send_slack_alert` tool.
+    - **Email**: An automated notification is sent to the moderation team via `send_email_to_user`.
+3.  **Manual Review**: The moderator launches the Streamlit app (`make run-hitl`) and selects the relevant `Submission ID`.
+4.  **Final Resolution**: 
+    - The moderator reviews the AI's reasoning and the postcard content.
+    - A human decision (**APPROVE** or **REJECT**) is submitted.
+    - **Audit Trail**: The decision is persisted in a `human_reviews` audit table, ensuring full traceability for compliance.
+
+---
+
 ## 🤵 Human-in-The-Loop (HITL) App
 When the AI flags content for manual review (`NEEDS_REVIEW`), use the Streamlit interface to resolve it:
 

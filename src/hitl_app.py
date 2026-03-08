@@ -50,12 +50,56 @@ if pool:
                         # This is a simplified view of the checkpoint data
                         cur.execute("SELECT checkpoint FROM checkpoints WHERE thread_id = %s ORDER BY checkpoint_id DESC LIMIT 1", (selected_thread,))
                         checkpoint = cur.fetchone()
-                        st.json(checkpoint[0] if checkpoint else {"info": "No checkpoint data found."})
+                        
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            st.subheader("🤖 AI Evaluation State")
+                            st.json(checkpoint[0] if checkpoint else {"info": "No checkpoint data found."})
+                        
+                        with col2:
+                            st.subheader("👤 Human Resolution")
+                            with st.form("resolution_form"):
+                                new_status = st.radio("Resolution Decision:", ["APPROVE", "REJECT"])
+                                comments = st.text_area("Resolution Reasoning/Notes:")
+                                submit = st.form_submit_button("Record Human Decision")
+                                
+                                if submit:
+                                    # Create table if it doesn't exist (demo convenience)
+                                    cur.execute("""
+                                        CREATE TABLE IF NOT EXISTS human_reviews (
+                                            submission_id TEXT PRIMARY KEY,
+                                            decision TEXT,
+                                            reasoning TEXT,
+                                            reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                                        )
+                                    """)
+                                    cur.execute("""
+                                        INSERT INTO human_reviews (submission_id, decision, reasoning)
+                                        VALUES (%s, %s, %s)
+                                        ON CONFLICT (submission_id) DO UPDATE SET 
+                                            decision = EXCLUDED.decision,
+                                            reasoning = EXCLUDED.reasoning,
+                                            reviewed_at = CURRENT_TIMESTAMP
+                                    """, (selected_thread, new_status, comments))
+                                    conn.commit()
+                                    st.success(f"Successfully recorded resolution for {selected_thread}!")
                 else:
                     st.write("No pending reviews found in the database.")
     except Exception as e:
         st.error(f"Error querying database: {e}")
         st.warning("Note: If you just started the containers, the `checkpoints` table might be empty until the first evaluation is run.")
+
+st.subheader("🕒 Audit Log: Recent Human Decisions")
+if pool:
+    try:
+        with pool.connection() as conn:
+            df = pd.read_sql("SELECT * FROM human_reviews ORDER BY reviewed_at DESC LIMIT 5", conn)
+            if not df.empty:
+                st.table(df)
+            else:
+                st.info("No human decisions logged yet.")
+    except Exception:
+        st.write("Run your first review to see the audit log.")
 
 st.divider()
 st.caption("Agentic Systems Engineer Trial - Human-in-the-Loop Component")
