@@ -104,9 +104,16 @@ The application is designed to support thousands of concurrent users through:
 ### 3. Security & Robustness
 - **Safe Tool Execution**: All agent tools (Slack, Email) require an authenticated API context. The agent cannot "jailbreak" and call these tools without passing through our security middleware.
 - **Node-Level Resilience**: Every LLM call is wrapped in a fallback layer. If OpenAI is down or the quota is hit (HTTP 429), the system **fails gracefully** by flagging the item for manual review instead of returning a 500.
+- **Exponential Backoff**: Implements `with_retry` logic for all LLM nodes. This ensures the system automatically recovers from transient network issues or rate-limit "bursts" without user intervention.
 - **Environment Management**: Secrets are strictly separated via `.env` and `.env.example`, with Git safeguards in place to prevent accidental leaks.
 
-### 4. Choice of Tools (PostgreSQL & SMTP)
+### 4. Evaluation-Driven Development (EDD)
+Unlike traditional software, AI systems require probabilistic testing. This repository includes a semi-automated **LLM-as-a-Judge** suite:
+- **Golden Set**: A curated set of high-variance inputs (Safe, Hateful, Spam).
+- **Automated Grading**: Uses a "Judge" LLM (GPT-4o) to evaluate the agent's performance based on professionalism and policy adherence.
+- **Regression Testing**: Ensures that changes to prompts or tools don't degrade the quality of previous "passing" cases.
+
+### 5. Choice of Tools (PostgreSQL & SMTP)
 - **PostgreSQL**: Industry standard for reliability. It serves as both our application state and our LangGraph checkpointer, providing a unified source of truth.
 - **Email/Slack**: Chosen as the "North Star" for enterprise notification. It demonstrates the ability to integrate with third-party APIs to bridge the gap between AI decisions and human actions.
 
