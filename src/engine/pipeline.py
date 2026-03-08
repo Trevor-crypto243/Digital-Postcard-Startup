@@ -4,22 +4,23 @@ from src.engine.config_runner import WorkflowRunner
 from src.utils.logger import get_logger
 from src.agent.llm_step import evaluate_postcard_text
 
+from src.config import settings
+
 logger = get_logger("postcard_pipeline")
 
 # -------------------------------------------------------------------
 # Pipeline Steps
 # -------------------------------------------------------------------
 
-def validate_input(submission: PostcardSubmission) -> PostcardSubmission:
+async def validate_input(submission: PostcardSubmission) -> PostcardSubmission:
     """Deterministic step: Validate basic constraints before hitting the LLM."""
-    if not submission.text_content or len(submission.text_content.strip()) < 5:
+    if not submission.text_content or len(submission.text_content.strip()) < settings.MIN_TEXT_LENGTH:
         logger.warning(f"Submission {submission.id} failed validation: Text too short or empty.")
-        # We raise a ValueError to halt the pipeline. The API layer should catch this.
-        raise ValueError("Postcard text must be at least 5 characters long.")
+        raise ValueError(f"Postcard text must be at least {settings.MIN_TEXT_LENGTH} characters long.")
     
-    if len(submission.text_content) > 1000:
+    if len(submission.text_content) > settings.MAX_TEXT_LENGTH:
         logger.warning(f"Submission {submission.id} failed validation: Text too long.")
-        raise ValueError("Postcard text exceeds maximum length of 1000 characters.")
+        raise ValueError(f"Postcard text exceeds maximum length of {settings.MAX_TEXT_LENGTH} characters.")
         
     return submission
 
@@ -36,7 +37,7 @@ async def llm_evaluation_step(submission: PostcardSubmission) -> dict:
         "evaluation": evaluation
     }
 
-def take_action_step(data: dict) -> PipelineResponse:
+async def take_action_step(data: dict) -> PipelineResponse:
     """Action step: Simulate writing to a database or sending an email based on the outcome."""
     submission: PostcardSubmission = data["submission"]
     evaluation: PostcardEvaluation = data["evaluation"]
@@ -73,7 +74,7 @@ def create_postcard_pipeline() -> WorkflowRunner:
     runner.add_step(
         name="deterministic_validation",
         action=validate_input,
-        is_async=False
+        is_async=True
     )
     
     # Step 2: LLM Classification
@@ -87,7 +88,7 @@ def create_postcard_pipeline() -> WorkflowRunner:
     runner.add_step(
         name="take_automated_action",
         action=take_action_step,
-        is_async=False
+        is_async=True
     )
     
     return runner

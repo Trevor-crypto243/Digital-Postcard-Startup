@@ -49,10 +49,10 @@ class WorkflowRunner:
                 if is_async:
                     current_payload = await action(current_payload)
                 else:
-                    current_payload = action(current_payload)
+                    # Run synchronous functions in a separate thread to avoid blocking the event loop
+                    current_payload = await asyncio.to_thread(action, current_payload)
                 
-                # We specifically don't record the full payload metadata 
-                # to keep logging clean, but we mark it complete.
+                # Mark step as completed in internal state
                 self.workflow.mark_step_completed(name)
             
             except Exception as e:
