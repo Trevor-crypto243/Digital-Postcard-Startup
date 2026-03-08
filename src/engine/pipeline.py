@@ -26,7 +26,10 @@ def validate_input(submission: PostcardSubmission) -> PostcardSubmission:
 async def llm_evaluation_step(submission: PostcardSubmission) -> dict:
     """LLM Step: Request evaluation from the LLM."""
     # Control gate is handled within evaluate_postcard_text (fallback to NEEDS_REVIEW on schema fail)
-    evaluation = await evaluate_postcard_text(submission.text_content)
+    # Agentic Intelligence Step (LLM Evaluation with Persistent Memory)
+    # We pass the submission_id as the thread_id for state tracking
+    logger.info(f"[Step 2] Routing to LLM Agent (Thread ID: {submission.id})")
+    evaluation = await evaluate_postcard_text(submission.text_content, thread_id=submission.id)
     
     return {
         "submission": submission,

@@ -26,8 +26,8 @@ async def test_pipeline_without_openai_key_falls_back(pipeline, monkeypatch):
     We simulate this by overwriting the evaluation chain to None.
     """
     import src.agent.llm_step
-    # Mock the chain as unavailable to trigger the explicit fallback
-    monkeypatch.setattr(src.agent.llm_step, "evaluation_chain", None)
+    # Mock the language model as unavailable to trigger the explicit fallback
+    monkeypatch.setattr(src.agent.llm_step, "llm_with_tools", None)
     
     submission = PostcardSubmission(id="3", user_id="u3", text_content="Hello, this is a test postcard.")
     result = await pipeline.execute(submission)
