@@ -1,6 +1,20 @@
-# Digital Postcard Automation Pipeline (Agentic V2)
+---
 
-This repository contains an advanced Agentic Systems Postcard Content QA pipeline, demonstrating production-level reliability, asynchronous orchestration with LangGraph, and Human-in-the-Loop (HITL) capabilities.
+## 💡 Why This Pipeline?
+Low-stakes AI (chatbots) can afford to be purely probabilistic. However, **enterprise-grade automation** (like Postcard Content QA) requires a **Deterministic AI Pipeline**. This project was built to solve the "unpredictability" problem of LLMs by:
+1.  **Guarding Profits**: Preventing costly printing of policy-violating or invalid postcards.
+2.  **Risk Mitigation**: Ensuring hateful or fraudulent content never reaches a customer.
+3.  **Human Efficiency**: Automating 90% of binary decisions while routing only the most ambiguous 10% to human experts.
+
+---
+
+## 🏗️ Deterministic AI Pipeline Alignment
+This architecture follows the core principles outlined in [Learning to build deterministic AI pipelines with LangChain](https://medium.com/@sajo02/learning-to-build-deterministic-ai-pipelines-with-langchain-a-practical-approach-aec6422c84ef):
+
+- **Deterministic Validation First**: We use standard Python logic (Stage 1) to enforce length and format constraints before a single cent is spent on LLM tokens.
+- **Structured Outputs**: Every AI decision is forced into a Pydantic schema using OpenAI's Structured Output API, ensuring zero "parsing errors" in production.
+- **Stateful Memory**: Leveraging **LangGraph** with a PostgreSQL checkpointer allows the pipeline to "remember" its state, supporting retries and auditability (the "Order Journey" pattern).
+- **Separation of Concerns**: Probabilistic reasoning (agent) is strictly separated from deterministic actions (sending emails/Slack alerts).
 
 ---
 
@@ -68,6 +82,13 @@ curl -X POST "http://localhost:8000/api/v1/postcards/evaluate" \
 
 ## 🤵 Human-in-The-Loop (HITL) Workflow
 The system is designed for high-stakes environments where AI decisions require human oversight.
+
+### **Demo Samples Provided:**
+To showcase the pipeline's versatility, we have seeded the following cases in the HITL dashboard:
+- **`demo-approved-1`**: A standard POSITIVE postcard.
+- **`demo-rejected-1`**: A clear SPAM/FRAUD violation.
+- **`demo-review-1`**: An AMBIGUOUS/VAGUE message flagging for professional human judgment.
+- **`demo-short-1`**: A DETERMINISTIC failure (too short) that never reached the LLM.
 
 ### **The "Review to Resolution" Flow:**
 1.  **AI Flagging**: If the pipeline results in `NEEDS_REVIEW`, the `take_action_step` is triggered.
