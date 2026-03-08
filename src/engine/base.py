@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Generic, TypeVar, List, Optional
 from datetime import datetime
-from .logger import get_logger
+from src.utils.logger import get_logger
 
 T = TypeVar("T")
 

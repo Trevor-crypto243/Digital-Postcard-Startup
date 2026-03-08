@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
 from pydantic import ValidationError
-from src.schemas import PostcardSubmission, PipelineResponse
-from src.pipeline import create_postcard_pipeline
-from src.logger import get_logger
-from src.limiter import limiter
-from src.security import require_admin, get_current_user
+from src.models.schemas import PostcardSubmission, PipelineResponse
+from src.engine.pipeline import create_postcard_pipeline
+from src.utils.logger import get_logger
+from src.api.limiter import limiter
+from src.api.security import require_admin, get_current_user
 
 logger = get_logger("api")
 

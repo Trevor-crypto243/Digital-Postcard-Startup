@@ -1,9 +1,9 @@
 import json
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from src.schemas import PostcardEvaluation, QAStatus
-from src.reliability import with_retry
-from src.logger import get_logger
+from src.models.schemas import PostcardEvaluation, QAStatus
+from src.utils.reliability import with_retry
+from src.utils.logger import get_logger
 
 logger = get_logger("llm_step")
 

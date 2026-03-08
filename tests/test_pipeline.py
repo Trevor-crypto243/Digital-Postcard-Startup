@@ -1,6 +1,6 @@
 import pytest
-from src.schemas import PostcardSubmission, QAStatus
-from src.pipeline import create_postcard_pipeline
+from src.models.schemas import PostcardSubmission, QAStatus
+from src.engine.pipeline import create_postcard_pipeline
 
 @pytest.fixture
 def pipeline():
@@ -25,9 +25,9 @@ async def test_pipeline_without_openai_key_falls_back(pipeline, monkeypatch):
     the fallback control gate should catch it and return NEEDS_REVIEW.
     We simulate this by overwriting the evaluation chain to None.
     """
-    import src.llm_step
+    import src.agent.llm_step
     # Mock the chain as unavailable to trigger the explicit fallback
-    monkeypatch.setattr(src.llm_step, "evaluation_chain", None)
+    monkeypatch.setattr(src.agent.llm_step, "evaluation_chain", None)
     
     submission = PostcardSubmission(id="3", user_id="u3", text_content="Hello, this is a test postcard.")
     result = await pipeline.execute(submission)

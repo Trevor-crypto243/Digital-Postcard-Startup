@@ -1,8 +1,8 @@
 import uvicorn
 from fastapi import FastAPI
-from src.logger import get_logger
-from src.api import router as postcards_router
-from src.limiter import limiter
+from src.utils.logger import get_logger
+from src.api.routes import router as postcards_router
+from src.api.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from fastapi.middleware.cors import CORSMiddleware

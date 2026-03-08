@@ -1,5 +1,5 @@
 from langchain_core.tools import tool
-from src.logger import get_logger
+from src.utils.logger import get_logger
 from typing import Optional
 
 logger = get_logger("agent_tools")

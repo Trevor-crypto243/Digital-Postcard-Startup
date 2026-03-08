@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Callable, Any, Dict
-from src.base import BaseWorkflow
-from src.logger import get_logger
+from src.engine.base import BaseWorkflow
+from src.utils.logger import get_logger
 
 logger = get_logger("workflow_runner")
 

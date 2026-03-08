@@ -1,8 +1,8 @@
 from datetime import datetime
-from src.schemas import PostcardSubmission, PostcardEvaluation, QAStatus, PipelineResponse
-from src.config_runner import WorkflowRunner
-from src.logger import get_logger
-from src.llm_step import evaluate_postcard_text
+from src.models.schemas import PostcardSubmission, PostcardEvaluation, QAStatus, PipelineResponse
+from src.engine.config_runner import WorkflowRunner
+from src.utils.logger import get_logger
+from src.agent.llm_step import evaluate_postcard_text
 
 logger = get_logger("postcard_pipeline")
 
