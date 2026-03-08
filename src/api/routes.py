@@ -31,7 +31,7 @@ async def evaluate_postcard(
         
     except ValueError as ve:
         # Deterministic validation errors (e.g. text too long/short)
-        logger.warning(f"API Bad Request for {submission.id}: {ve}")
+        logger.warning(f"API Validation Error for {submission.id}: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
         
     except ValidationError as ve:
@@ -40,6 +40,18 @@ async def evaluate_postcard(
         raise HTTPException(status_code=422, detail="Invalid data schema format provided.")
         
     except Exception as e:
-        # Uncaught pipeline failures (LLM fallback handles most LLM issues)
+        # Check if it looks like an authentication error from OpenAI
+        error_str = str(e).lower()
+        if "api key" in error_str or "unauthorized" in error_str or "401" in error_str:
+             logger.error(f"API Configuration/Auth Error for {submission.id}: {e}")
+             raise HTTPException(
+                 status_code=424, 
+                 detail="Pipeline failed due to downstream authentication issue (LLM). Please check API keys."
+             )
+             
+        # Uncaught pipeline failures 
         logger.error(f"API Internal Error while evaluating {submission.id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error executing pipeline.")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal server error executing pipeline: {type(e).__name__}"
+        )

@@ -12,6 +12,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from src.models.schemas import PostcardEvaluation, QAStatus
 from src.agent.tools import send_slack_alert, send_email_to_user
 from src.utils.logger import get_logger
+from src.config import settings
 
 logger = get_logger("agent_graph")
 
@@ -41,10 +42,20 @@ tools = [send_slack_alert, send_email_to_user]
 
 # Initialize LLM with tools and structured output capabilities
 try:
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
-    llm_with_tools = llm.bind_tools(tools)
-    # We will use this specifically to force the structured evaluation output at the end
-    eval_llm = llm.with_structured_output(PostcardEvaluation)
+    if settings.OPENAI_API_KEY:
+        llm = ChatOpenAI(
+            model=settings.LLM_MODEL, 
+            temperature=settings.LLM_TEMPERATURE,
+            openai_api_key=settings.OPENAI_API_KEY
+        )
+        llm_with_tools = llm.bind_tools(tools)
+        # We will use this specifically to force the structured evaluation output at the end
+        eval_llm = llm.with_structured_output(PostcardEvaluation)
+    else:
+        logger.warning("No OPENAI_API_KEY found in settings. Running in fallback mode.")
+        llm = None
+        llm_with_tools = None
+        eval_llm = None
 except Exception as e:
     logger.warning(f"Could not initialize OpenAI LLM: {e}")
     llm = None
@@ -64,8 +75,12 @@ def reasoning_node(state: AgentState):
         {"role": "user", "content": f"Evaluate this text: {state['text_content']}"}
     ] + state["messages"]
     
-    response = llm_with_tools.invoke(messages)
-    return {"messages": [response]}
+    try:
+        response = llm_with_tools.invoke(messages)
+        return {"messages": [response]}
+    except Exception as e:
+        logger.error(f"Error in reasoning_node: {e}")
+        return {"messages": [AIMessage(content=f"Error during reasoning: {e}. Falling back to manual review.")]}
 
 def finalize_evaluation_node(state: AgentState):
     """After any tools are run (or if none were needed), generate the final structured output."""
@@ -125,7 +140,7 @@ workflow.add_edge("tools", "agent") # Tools feedback to the agent
 workflow.add_edge("finalize", END)
 
 # DB Connection globally for the Checkpointer
-DB_URI = os.getenv("DATABASE_SYNC_URL", "postgresql+psycopg://admin:password@localhost:5432/agentic_db")
+DB_URI = settings.DATABASE_SYNC_URL
 
 # Initialize connection pool for Postgres Checkpointer (Memory)
 # In production, this allows 'Operational and context retention' tracing exactly what the agent did.
