@@ -92,6 +92,19 @@ PYTHONPATH=. python3 tests/eval_suite.py
 
 ---
 
+## 🏗️ Database Optimization & Scalability
+
+The persistence layer is designed for enterprise-grade reliability and performance:
+
+- **Stateful Persistence (LangGraph)**: Every "reasoning journey" is saved as a binary checkpoint in PostgreSQL. This allows the system to recover from crashes mid-execution and provides a complete audit trail of the agent's logic.
+- **Scalable Indexing**: The `checkpoints` and `human_reviews` tables are indexed for high-concurrency retrieval. As the system scales to millions of postcards, lookups for specific `thread_id`s remain $O(1)$ to $O(\log n)$.
+- **Security & Integrity**: 
+    - **Lease-Based Locking**: LangGraph uses PostgreSQL to ensure that only one worker can process a specific `thread_id` at a time, preventing race conditions in distributed environments.
+    - **ACID Compliance**: Every human resolution and AI decision is committed within a transaction, ensuring that the "Brand Safety" audit log is never corrupted.
+- **Efficient I/O**: We use `AsyncPostgresSaver` with a connection pool, allowing the system to handle thousands of concurrent DB operations without exhausting system resources.
+
+---
+
 ## 📋 Requirement Traceability (Interview Dashboard)
 
 This project explicitly satisfies all 6 core requirements and the "system that builds systems" mandatory criteria:
