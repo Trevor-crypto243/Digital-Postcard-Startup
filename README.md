@@ -12,10 +12,17 @@ Low-stakes AI (chatbots) can afford to be purely probabilistic. However, **enter
 
 ---
 
+## 🏗️ Deep Dive: Architecture & Design
+For a technical breakdown of the system's state machine, failure handling, and the "System that Builds Systems" pattern, see the [Architecture Overview](architecture_overview.md).
+
+---
+
 ## 🛠️ Features & Engineering Standards
 - **Agentic Orchestration**: Uses **LangGraph** for non-linear, stateful reasoning, allowing for complex retry loops and conditional routing.
 - **Production Resilience**: Implements node-level error handling, exponential backoff, and non-blocking asynchronous execution.
-- **Tool Integration**: Agent dynamically uses Slack and Email tools for operational routing and user notifications.
+- **Operational Integrations**: 
+    - **Slack**: Real-time incident triage and moderation alerts via Webhooks.
+    - **Email**: Automated user notifications for rejections and policy updates.
 - **Memory Persistence**: Uses **PostgreSQL** to track the "order journey" (checkpointing), ensuring no state is lost during system restarts.
 - **Human-in-the-Loop**: Integrated Streamlit dashboard for manual review, providing the **Final Authority** on ambiguous content.
 
