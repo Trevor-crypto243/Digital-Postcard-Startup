@@ -48,14 +48,15 @@ try:
             temperature=settings.LLM_TEMPERATURE,
             openai_api_key=settings.OPENAI_API_KEY
         )
-        # Add retry logic for production robustness (Exponential Backoff)
-        llm_with_retry = llm.with_retry(
+        # Correct order: bind tools/output first, then apply retry logic
+        llm_with_tools = llm.bind_tools(tools).with_retry(
             stop_after_attempt=3,
             wait_exponential_jitter=True
         )
-        llm_with_tools = llm_with_retry.bind_tools(tools)
-        # We will use this specifically to force the structured evaluation output at the end
-        eval_llm = llm_with_retry.with_structured_output(PostcardEvaluation)
+        eval_llm = llm.with_structured_output(PostcardEvaluation).with_retry(
+            stop_after_attempt=3,
+            wait_exponential_jitter=True
+        )
     else:
         logger.warning("No OPENAI_API_KEY found in settings. Running in fallback mode.")
         llm = None
