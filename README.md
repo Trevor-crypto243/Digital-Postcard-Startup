@@ -4,11 +4,19 @@ This repository contains an advanced Agentic Systems Postcard Content QA pipelin
 
 ---
 
-## 💡 Why This Pipeline?
-Low-stakes AI (chatbots) can afford to be purely probabilistic. However, **enterprise-grade automation** (like Postcard Content QA) requires a **Deterministic AI Pipeline**. This project was built to solve the "unpredictability" problem of LLMs by:
-1.  **Guarding Profits**: Preventing costly printing of policy-violating or invalid postcards.
-2.  **Risk Mitigation**: Ensuring hateful or fraudulent content never reaches a customer.
-3.  **Human Efficiency**: Automating 90% of binary decisions while routing only the most ambiguous 10% to human experts.
+## 📈 Business Case & Assumptions (Write-up)
+
+**Workflow Chosen**: Postcard Content QA (Operations Pillar)
+
+**The Problem**: Our digital postcard startup currently processes ~5,000 submissions daily. Each postcard is manually reviewed for "Brand Safety" (hate speech, PII, or nonsensical gibberish), costing $0.15 per review in labor and causing a 4-hour delay in delivery.
+
+**The Solution**: This Agentic Pipeline automates the classification and routing of postcards.
+- **Goal Metric**: 90% reduction in manual review volume and 85% reduction in "Time-to-Print" latency.
+- **Assumptions (Baseline)**: 
+    - 85% of postcards are clearly safe (Auto-Approved).
+    - 5% are clearly violations (Auto-Rejected).
+    - 10% are ambiguous/creative (Routed to HITL Dashboard).
+- **Impact Logic**: By automating 90% of decisions, we save **$675/day** in operational costs and ensure "Safe" postcards are ready for printing in seconds, not hours.
 
 ---
 
