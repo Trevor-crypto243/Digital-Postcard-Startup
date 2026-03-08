@@ -3,6 +3,7 @@ from src.models.schemas import PostcardSubmission, PostcardEvaluation, QAStatus,
 from src.engine.config_runner import WorkflowRunner
 from src.utils.logger import get_logger
 from src.agent.llm_step import evaluate_postcard_text
+from src.agent.tools import send_slack_alert, send_email_to_user
 
 from src.config import settings
 
@@ -38,20 +39,33 @@ async def llm_evaluation_step(submission: PostcardSubmission) -> dict:
     }
 
 async def take_action_step(data: dict) -> PipelineResponse:
-    """Action step: Simulate writing to a database or sending an email based on the outcome."""
+    """Action step: Dispatch notifications and record results."""
     submission: PostcardSubmission = data["submission"]
     evaluation: PostcardEvaluation = data["evaluation"]
     
-    # Simulate saving to DB
     logger.info(f"Simulating DB Write: Saving evaluation result '{evaluation.status}' for submission '{submission.id}'")
     
-    # Simulate automated Notification/Action
+    # Real Notification Dispatch (using our defined tools)
     if evaluation.status == QAStatus.REJECTED:
-        logger.warning(f"Simulating Action: Sending policy violation email to user {submission.user_id}")
+        send_email_to_user.invoke({
+            "user_id": submission.user_id,
+            "subject": f"Postcard {submission.id} Rejected",
+            "body": f"Your postcard was rejected. Reason: {evaluation.reasoning}"
+        })
     elif evaluation.status == QAStatus.NEEDS_REVIEW:
-        logger.info(f"Simulating Action: Creating a Zendesk ticket for manual review (Submission ID: {submission.id})")
+        send_slack_alert.invoke({
+            "channel": settings.MODERATION_CHANNEL,
+            "message": f"🚨 HUMAN REVIEW REQUIRED: Postcard {submission.id} flagged. Reason: {evaluation.reasoning}",
+            "severity": "high"
+        })
+        # Also notify the moderation team via email
+        send_email_to_user.invoke({
+            "user_id": "moderators-list",
+            "subject": f"Moderation Required: {submission.id}",
+            "body": f"A new postcard requires manual review. Thread ID: {submission.id}"
+        })
     else:
-        logger.info(f"Simulating Action: Enqueueing postcard {submission.id} for final rendering.")
+        logger.info(f"Success: Postcard {submission.id} approved and ready for rendering.")
 
     return PipelineResponse(
         submission_id=submission.id,
