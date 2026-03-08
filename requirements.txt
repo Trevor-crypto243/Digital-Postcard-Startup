@@ -11,3 +11,5 @@ pytest
 pytest-asyncio
 chromadb
 loguru
+langchain_openai
+langchain_community
