@@ -28,4 +28,4 @@ run-hitl:
 
 test:
 	@echo "Running pytest suite..."
-	PYTHONPATH=. pytest -v tests/
+	. venv/bin/activate && PYTHONPATH=. pytest -v tests/
