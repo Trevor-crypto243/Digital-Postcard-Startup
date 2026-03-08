@@ -13,10 +13,22 @@ logger = get_logger("main")
 # Load environment variables (OPENAI_API_KEY)
 load_dotenv()
 
+from contextlib import asynccontextmanager
+from src.agent.llm_step import get_graph_app
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize LangGraph Checkpointer at startup
+    logger.info("Initializing LangGraph Checkpointer...")
+    await get_graph_app()
+    yield
+    logger.info("Shutting down...")
+
 app = FastAPI(
     title="Digital Postcard Automation API",
     description="Agentic pipeline for Postcard Content QA",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Standard Security Best Practice: CORS & Rate Limiting

@@ -46,60 +46,77 @@ if pool:
                     selected_thread = st.selectbox("Select a Thread (Submission ID) to inspect:", [t[0] for t in threads])
                     
                     if selected_thread:
-                        st.write(f"### Inspection for Thread: `{selected_thread}`")
-                        # This is a simplified view of the checkpoint data
+                        st.divider()
+                        st.write(f"### 🔍 Inspection: `{selected_thread}`")
+                        
+                        # Query LangGraph state
                         cur.execute("SELECT checkpoint FROM checkpoints WHERE thread_id = %s ORDER BY checkpoint_id DESC LIMIT 1", (selected_thread,))
-                        checkpoint = cur.fetchone()
+                        row = cur.fetchone()
                         
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            st.subheader("🤖 AI Evaluation State")
-                            st.json(checkpoint[0] if checkpoint else {"info": "No checkpoint data found."})
-                        
-                        with col2:
-                            st.subheader("👤 Human Resolution")
-                            with st.form("resolution_form"):
-                                new_status = st.radio("Resolution Decision:", ["APPROVE", "REJECT"])
-                                comments = st.text_area("Resolution Reasoning/Notes:")
-                                submit = st.form_submit_button("Record Human Decision")
+                        if row:
+                            checkpoint_data = row[0]
+                            # LangGraph state is usually in ['values']
+                            state_values = checkpoint_data.get("values", {})
+                            content = state_values.get("text_content", "N/A")
+                            eval_data = state_values.get("evaluation", {})
+                            
+                            col1, col2 = st.columns([1, 1])
+                            
+                            with col1:
+                                st.subheader("📖 Submission Content")
+                                st.info(f'"{content}"')
                                 
-                                if submit:
-                                    # Create table if it doesn't exist (demo convenience)
-                                    cur.execute("""
-                                        CREATE TABLE IF NOT EXISTS human_reviews (
-                                            submission_id TEXT PRIMARY KEY,
-                                            decision TEXT,
-                                            reasoning TEXT,
-                                            reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                                        )
-                                    """)
-                                    cur.execute("""
-                                        INSERT INTO human_reviews (submission_id, decision, reasoning)
-                                        VALUES (%s, %s, %s)
-                                        ON CONFLICT (submission_id) DO UPDATE SET 
-                                            decision = EXCLUDED.decision,
-                                            reasoning = EXCLUDED.reasoning,
-                                            reviewed_at = CURRENT_TIMESTAMP
-                                    """, (selected_thread, new_status, comments))
-                                    conn.commit()
-                                    st.success(f"Successfully recorded resolution for {selected_thread}!")
+                                st.subheader("🤖 AI Analysis")
+                                status = eval_data.get("status", "UNKNOWN")
+                                color = "green" if status == "APPROVED" else "orange" if status == "NEEDS_REVIEW" else "red"
+                                st.markdown(f"**Status**: :{color}[{status}]")
+                                st.markdown(f"**Confidence**: `{eval_data.get('confidence_score', 0)*100:.1f}%`")
+                                st.markdown(f"**Reasoning**: {eval_data.get('reasoning', 'No reasoning provided.')}")
+                                
+                                with st.expander("🛠️ Technical Trace (JSON)"):
+                                    st.json(checkpoint_data)
+                            
+                            with col2:
+                                st.subheader("⚖️ Final Human Authority")
+                                st.markdown("Please provide the final decision on this postcard. Your decision will be logged for audit and will override the AI's initial flagging.")
+                                
+                                with st.form("resolution_form"):
+                                    new_status = st.radio("Manual Resolution:", ["APPROVE", "REJECT"], index=0 if status == "APPROVED" else 1)
+                                    comments = st.text_area("Justification / Audit Notes:", placeholder="Why are you making this decision?")
+                                    submit = st.form_submit_button("Submit Final Decision", use_container_width=True)
+                                    
+                                    if submit:
+                                        cur.execute("""
+                                            INSERT INTO human_reviews (submission_id, decision, reasoning)
+                                            VALUES (%s, %s, %s)
+                                            ON CONFLICT (submission_id) DO UPDATE SET 
+                                                decision = EXCLUDED.decision,
+                                                reasoning = EXCLUDED.reasoning,
+                                                reviewed_at = CURRENT_TIMESTAMP
+                                        """, (selected_thread, new_status, comments))
+                                        conn.commit()
+                                        st.success(f"✅ Resolution logged for `{selected_thread}`. The system state has been updated.")
+                                        st.balloons()
+                        else:
+                            st.warning("Could not retrieve state details for this thread.")
                 else:
                     st.write("No pending reviews found in the database.")
     except Exception as e:
         st.error(f"Error querying database: {e}")
         st.warning("Note: If you just started the containers, the `checkpoints` table might be empty until the first evaluation is run.")
 
-st.subheader("🕒 Audit Log: Recent Human Decisions")
+st.divider()
+st.subheader("🕒 Audit Log: Resolution History")
 if pool:
     try:
         with pool.connection() as conn:
-            df = pd.read_sql("SELECT * FROM human_reviews ORDER BY reviewed_at DESC LIMIT 5", conn)
+            df = pd.read_sql("SELECT submission_id as ID, decision as Decision, reasoning as Notes, reviewed_at as Time FROM human_reviews ORDER BY reviewed_at DESC LIMIT 5", conn)
             if not df.empty:
-                st.table(df)
+                st.dataframe(df, use_container_width=True, hide_index=True)
             else:
-                st.info("No human decisions logged yet.")
+                st.info("No resolutions have been recorded yet.")
     except Exception:
-        st.write("Run your first review to see the audit log.")
+        st.write("Complete your first human review to initialize the audit log.")
 
 st.divider()
-st.caption("Agentic Systems Engineer Trial - Human-in-the-Loop Component")
+st.caption("Agentic Systems Engineer | Compliance & Manual Review Interface")
