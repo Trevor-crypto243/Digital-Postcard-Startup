@@ -6,8 +6,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from psycopg_pool import ConnectionPool
-from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import AsyncConnectionPool
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from src.models.schemas import PostcardEvaluation, QAStatus
 from src.agent.tools import send_slack_alert, send_email_to_user
@@ -145,23 +145,32 @@ workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", "fin
 workflow.add_edge("tools", "agent") # Tools feedback to the agent
 workflow.add_edge("finalize", END)
 
-# DB Connection globally for the Checkpointer
-DB_URI = settings.DATABASE_SYNC_URL
+# Global checkpointer state
+_async_pool = None
+_checkpointer = None
 
-# Initialize connection pool for Postgres Checkpointer (Memory)
-# In production, this allows 'Operational and context retention' tracing exactly what the agent did.
-try:
-    # Need to extract standard postgres URI from sqlalchemy format if used
-    pg_uri = DB_URI.replace("postgresql+psycopg://", "postgresql://")
-    pool = ConnectionPool(conninfo=pg_uri, max_size=20)
-    checkpointer = PostgresSaver(pool)
-    checkpointer.setup() # Ensures checkpointer tables exist
-    graph_app = workflow.compile(checkpointer=checkpointer)
-    logger.info("LangGraph compiled successfully WITH Postgres Memory!")
-except Exception as e:
-    logger.error(f"Failed to initialize Postgres checkpointer. Running in memory only mode: {e}")
-    # Fallback to in-memory graph if DB is down during tests
-    graph_app = workflow.compile()
+async def get_graph_app():
+    """
+    Lazy initialization of the LangGraph app with Async Postgres Checkpointer.
+    This ensures that setup() is called in an async context and persists across requests.
+    """
+    global _async_pool, _checkpointer
+    
+    if _checkpointer is None:
+        try:
+            # Need to extract standard postgres URI from sqlalchemy format if used
+            pg_uri = settings.DATABASE_SYNC_URL.replace("postgresql+psycopg://", "postgresql://")
+            # Use autocommit=True for the pool to avoid "CREATE INDEX CONCURRENTLY" transaction errors
+            _async_pool = AsyncConnectionPool(conninfo=pg_uri, max_size=20, kwargs={"autocommit": True})
+            _checkpointer = AsyncPostgresSaver(_async_pool)
+            # setup() runs the migrations (creating 'checkpoints', 'writes' etc.)
+            await _checkpointer.setup()
+            logger.info("LangGraph Async Postgres Checkpointer initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Postgres checkpointer: {e}. Falling back to in-memory.")
+            return workflow.compile()
+            
+    return workflow.compile(checkpointer=_checkpointer)
 
 async def evaluate_postcard_text(text_content: str, thread_id: str) -> PostcardEvaluation:
     """
@@ -169,6 +178,7 @@ async def evaluate_postcard_text(text_content: str, thread_id: str) -> PostcardE
     Notice the thread_id: Memory is like an order ID in ecommerce; 
     every step in the reasoning journey is saved to Postgres under this thread.
     """
+    app = await get_graph_app()
     config = {"configurable": {"thread_id": thread_id}}
     
     # Initial state
@@ -182,6 +192,6 @@ async def evaluate_postcard_text(text_content: str, thread_id: str) -> PostcardE
     
     # Run the graph synchronously (or async if using ainvoke/AsyncPostgresSaver)
     # Using invoke here to match standard ToolNode setup
-    final_state = await graph_app.ainvoke(inputs, config=config)
+    final_state = await app.ainvoke(inputs, config=config)
     
     return final_state.get("evaluation")
